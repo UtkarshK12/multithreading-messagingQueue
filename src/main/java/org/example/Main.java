@@ -1,5 +1,7 @@
 package org.example;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
@@ -135,50 +137,146 @@ public class Main {
 //
 //
 
-        ExecutorService pool = Executors.newFixedThreadPool(5);
-        Supplier<String> futuretask1 = () -> {
-            try {
-                return new FuturesIssues().doTask(3000,"task 1");
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-        };
-        Supplier<String> futuretask2 = () -> {
-            try {
-                return new FuturesIssues().doTask(3000,"task 2");
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-        };
-        Supplier<String> futuretask3 = () -> {
-            try {
-                return new FuturesIssues().doTask(5000,"task 3");
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-        };
-        Supplier<String> futuretask4 = () -> {
-            try {
-                return new FuturesIssues().doTask(6000,"task 4");
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-        };
+//        ExecutorService pool = Executors.newFixedThreadPool(5);
+//        Supplier<String> futuretask1 = () -> {
+//            try {
+//                return new FuturesIssues().doTask(3000,"task 1");
+//            } catch (InterruptedException e) {
+//                throw new RuntimeException(e);
+//            }
+//        };
+//        Supplier<String> futuretask2 = () -> {
+//            try {
+//                return new FuturesIssues().doTask(3000,"task 2");
+//            } catch (InterruptedException e) {
+//                throw new RuntimeException(e);
+//            }
+//        };
+//        Supplier<String> futuretask3 = () -> {
+//            try {
+//                return new FuturesIssues().doTask(5000,"task 3");
+//            } catch (InterruptedException e) {
+//                throw new RuntimeException(e);
+//            }
+//        };
+//        Supplier<String> futuretask4 = () -> {
+//            try {
+//                return new FuturesIssues().doTask(6000,"task 4");
+//            } catch (InterruptedException e) {
+//                throw new RuntimeException(e);
+//            }
+//        };
+//
+//       CompletableFuture pipeline = CompletableFuture.supplyAsync(futuretask1,pool)
+//               .thenCombine(CompletableFuture.supplyAsync(futuretask2,pool),(res1,res2)->res1+" "+res2)
+//               .thenCompose(res -> CompletableFuture.supplyAsync(futuretask3,pool)
+//                       .thenCombine(
+//                               CompletableFuture.supplyAsync(futuretask4,pool),
+//                               (res1,res2)->res+" "+res1+" "+res2)
+//               )
+//               .thenAccept(res -> {System.out.println("tasks completed ->"+res);});
+//
+//        System.out.println("tasks running in bg");
+//        pipeline.join();
+//
+//
 
-       CompletableFuture pipeline = CompletableFuture.supplyAsync(futuretask1,pool)
-               .thenCombine(CompletableFuture.supplyAsync(futuretask2,pool),(res1,res2)->res1+" "+res2)
-               .thenCompose(res -> CompletableFuture.supplyAsync(futuretask3,pool)
-                       .thenCombine(
-                               CompletableFuture.supplyAsync(futuretask4,pool),
-                               (res1,res2)->res+" "+res1+" "+res2)
+//        ExecutorService pool = Executors.newFixedThreadPool(5);
+//
+//        Callable cll = () ->{
+//            Thread.sleep(5000);
+//            return "received string !!";
+//        };
+//
+//        Future f1 = pool.submit(cll);
+//
+//
+//        System.out.println("future running in bg");
+//        System.out.println(f1.get()+ " " +f1.isDone());
 
-               )
-               .thenAccept(res -> {System.out.println("tasks completed ->"+res);});
 
-        pipeline.join();
+//        CompletableFuture<String> cf = CompletableFuture.supplyAsync(()->{
+//            try {
+//                Thread.sleep(5000);
+//            } catch (InterruptedException e) {
+//                throw new RuntimeException(e);
+//            }
+//            String a = "task";
+//            return String.format("completed all %s",a);
+//        });
+//
+//
+//       CompletableFuture<String> cf2=cf.thenApply(res -> {
+//           try {
+//               Thread.sleep(1000);
+//           } catch (InterruptedException e) {
+//               throw new RuntimeException(e);
+//           }
+//           return res+" done2";});
+//
+//       System.out.println("tasks delegated");
+//
+//       cf2.whenComplete((res, error)->{
+//           if(error!=null){
+//               System.out.println("error");
+//           }
+//           else{
+//               System.out.println(res);
+//           }
+//       });
+//
+//        cf2.join();
+
+
+
+        //      ----------------performance testing --------------
+
+
+        long startTime = System.nanoTime();
+        ArrayFiller ar = new ArrayFiller();
+        for(int i=0;i<200;i++){
+            ar.add(i,i);
+        }
+        long endTime   = System.nanoTime();
+        long totalTime = endTime - startTime;
+        System.out.println("total time method 1 ->"+ totalTime);
+
+
+        long startTime2 = System.nanoTime();
+        ExecutorService executorService = Executors.newFixedThreadPool(20);
+        ArrayFiller ar2= new ArrayFiller();
+        // Store futures to track completion
+        List<Future<?>> futures = new ArrayList<>();
+        for(int i = 0; i < 200; i++) {
+            final int ind = i;
+            Future<?> future = executorService.submit(() -> {
+                try {
+                    ar2.add(ind, ind);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+            futures.add(future);
+        }
+
+// Wait for all tasks to complete
+        for(Future<?> future : futures) {
+            try {
+                future.get();
+            } catch (InterruptedException | ExecutionException e) {
+                e.printStackTrace();
+            }
+        }
+
+        long endTime2 = System.nanoTime();
+        long totalTime2 = endTime2 - startTime2;
+        System.out.println("total time method 2 -> " + totalTime2);
+
+// Shutdown the executor
+        executorService.shutdown();
+
+
 
     }
-
-
 
 }
